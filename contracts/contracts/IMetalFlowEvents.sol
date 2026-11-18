@@ -18,7 +18,7 @@ interface IMetalFlowEvents {
 
     event CreditLineAccepted(uint256 indexed lineId);
     event ReserveDeposited(uint256 indexed lineId, uint256 amountUsdc);
-    event MarginCallValidated(uint256 indexed lineId, uint256 indexed marginCallId);
+    event MarginCallValidated(uint256 indexed lineId, uint256 indexed marginCallId, uint256 maxAmountUsdc);
 
     event ReserveFundedViaCctp(
         uint256 indexed lineId,

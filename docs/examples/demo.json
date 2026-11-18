@@ -6,6 +6,8 @@
       "initial": {
         "creditLineStatus": "NONE",
         "marginCallStatus": "NONE",
+        "marginCallMaxAmountUsdc": "0",
+        "marginCallDrawnAmountUsdc": "0",
         "reserveReviewStatus": "NONE",
         "limitUsdc": "0",
         "availableReserveUsdc": "0",
@@ -58,7 +60,8 @@
           "logIndex": 0,
           "data": {
             "lineId": "1",
-            "marginCallId": "1"
+            "marginCallId": "1",
+            "maxAmountUsdc": "2000000"
           }
         },
         {
@@ -93,6 +96,8 @@
         "trader": "0x0000000000000000000000000000000000000002",
         "marginCallStatus": "VALIDATED",
         "marginCallId": "1",
+        "marginCallMaxAmountUsdc": "2000000",
+        "marginCallDrawnAmountUsdc": "2000000",
         "reserveReviewStatus": "NONE",
         "limitUsdc": "7000000",
         "availableReserveUsdc": "7000000",
@@ -108,6 +113,8 @@
         "trader": "0x0000000000000000000000000000000000000002",
         "marginCallStatus": "VALIDATED",
         "marginCallId": "1",
+        "marginCallMaxAmountUsdc": "2000000",
+        "marginCallDrawnAmountUsdc": "0",
         "reserveReviewStatus": "NONE",
         "limitUsdc": "7000000",
         "availableReserveUsdc": "1000000",
@@ -178,6 +185,8 @@
         "trader": "0x0000000000000000000000000000000000000002",
         "marginCallStatus": "VALIDATED",
         "marginCallId": "1",
+        "marginCallMaxAmountUsdc": "2000000",
+        "marginCallDrawnAmountUsdc": "2000000",
         "reserveReviewStatus": "COMPLETED",
         "limitUsdc": "7000000",
         "availableReserveUsdc": "5000000",

@@ -9,10 +9,15 @@
   "scripts": {
     "compile": "hardhat compile",
     "node": "hardhat node",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "deploy:arc": "hardhat run scripts/deploy-arc.ts --network arcTestnet"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "4.2.2",
+    "@nomicfoundation/hardhat-node-test-runner": "3.1.2",
+    "@openzeppelin/contracts": "5.6.1",
     "@types/node": "24.19.2",
+    "ethers": "6.17.0",
     "hardhat": "3.22.0",
     "solc": "0.8.30",
     "typescript": "5.9.3"
