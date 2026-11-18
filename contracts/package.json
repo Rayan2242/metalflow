@@ -1,0 +1,20 @@
+{
+  "name": "metalflow-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "compile": "hardhat compile",
+    "node": "hardhat node",
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "hardhat": "3.22.0",
+    "solc": "0.8.30",
+    "typescript": "5.9.3"
+  }
+}

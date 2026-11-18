@@ -1,0 +1,188 @@
+{
+  "scenarios": [
+    {
+      "id": "arc-deposit",
+      "lineId": "1",
+      "initial": {
+        "creditLineStatus": "NONE",
+        "marginCallStatus": "NONE",
+        "reserveReviewStatus": "NONE",
+        "limitUsdc": "0",
+        "availableReserveUsdc": "0",
+        "outstandingPrincipalUsdc": "0"
+      },
+      "events": [
+        {
+          "name": "CreditLineProposed",
+          "source": "arc",
+          "chainId": 5042002,
+          "blockNumber": "100",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000064",
+          "logIndex": 0,
+          "data": {
+            "lineId": "1",
+            "lender": "0x0000000000000000000000000000000000000001",
+            "trader": "0x0000000000000000000000000000000000000002",
+            "limitUsdc": "7000000"
+          }
+        },
+        {
+          "name": "CreditLineAccepted",
+          "source": "arc",
+          "chainId": 5042002,
+          "blockNumber": "101",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000065",
+          "logIndex": 0,
+          "data": {
+            "lineId": "1"
+          }
+        },
+        {
+          "name": "ReserveDeposited",
+          "source": "arc",
+          "chainId": 5042002,
+          "blockNumber": "102",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000066",
+          "logIndex": 0,
+          "data": {
+            "lineId": "1",
+            "amountUsdc": "7000000"
+          }
+        },
+        {
+          "name": "MarginCallValidated",
+          "source": "arc",
+          "chainId": 5042002,
+          "blockNumber": "103",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000067",
+          "logIndex": 0,
+          "data": {
+            "lineId": "1",
+            "marginCallId": "1"
+          }
+        },
+        {
+          "name": "CreditDrawn",
+          "source": "arc",
+          "chainId": 5042002,
+          "blockNumber": "104",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000068",
+          "logIndex": 0,
+          "data": {
+            "lineId": "1",
+            "marginCallId": "1",
+            "amountUsdc": "2000000"
+          }
+        },
+        {
+          "name": "CreditRepaid",
+          "source": "arc",
+          "chainId": 5042002,
+          "blockNumber": "105",
+          "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000069",
+          "logIndex": 0,
+          "data": {
+            "lineId": "1",
+            "amountUsdc": "2000000"
+          }
+        }
+      ],
+      "expected": {
+        "creditLineStatus": "ACCEPTED",
+        "lender": "0x0000000000000000000000000000000000000001",
+        "trader": "0x0000000000000000000000000000000000000002",
+        "marginCallStatus": "VALIDATED",
+        "marginCallId": "1",
+        "reserveReviewStatus": "NONE",
+        "limitUsdc": "7000000",
+        "availableReserveUsdc": "7000000",
+        "outstandingPrincipalUsdc": "0"
+      }
+    },
+    {
+      "id": "base-cctp-top-up",
+      "lineId": "2",
+      "initial": {
+        "creditLineStatus": "ACCEPTED",
+        "lender": "0x0000000000000000000000000000000000000001",
+        "trader": "0x0000000000000000000000000000000000000002",
+        "marginCallStatus": "VALIDATED",
+        "marginCallId": "1",
+        "reserveReviewStatus": "NONE",
+        "limitUsdc": "7000000",
+        "availableReserveUsdc": "1000000",
+        "outstandingPrincipalUsdc": "0"
+      },
+      "events": [
+        {
+          "name": "GeminiSignalRecorded",
+          "source": "simulation",
+          "eventId": "demo-2-signal",
+          "data": {
+            "lineId": "2",
+            "signalId": "signal-1",
+            "reason": "La réserve de 1 USDC est inférieure au tirage attendu de 2 USDC."
+          }
+        },
+        {
+          "name": "ReserveReviewOpened",
+          "source": "simulation",
+          "eventId": "demo-2-review",
+          "data": {
+            "lineId": "2",
+            "reviewId": "review-1",
+            "signalId": "signal-1",
+            "expectedNetAmountUsdc": "6000000"
+          }
+        },
+        {
+          "name": "ReserveReviewTransferLinked",
+          "source": "simulation",
+          "eventId": "demo-2-transfer",
+          "data": {
+            "lineId": "2",
+            "reviewId": "review-1",
+            "messageHash": "0x00000000000000000000000000000000000000000000000000000000000003e8"
+          }
+        },
+        {
+          "name": "ReserveFundedViaCctp",
+          "source": "arc",
+          "chainId": 5042002,
+          "blockNumber": "200",
+          "transactionHash": "0x00000000000000000000000000000000000000000000000000000000000000c8",
+          "logIndex": 0,
+          "data": {
+            "lineId": "2",
+            "messageHash": "0x00000000000000000000000000000000000000000000000000000000000003e8",
+            "netAmountUsdc": "6000000"
+          }
+        },
+        {
+          "name": "CreditDrawn",
+          "source": "arc",
+          "chainId": 5042002,
+          "blockNumber": "201",
+          "transactionHash": "0x00000000000000000000000000000000000000000000000000000000000000c9",
+          "logIndex": 0,
+          "data": {
+            "lineId": "2",
+            "marginCallId": "1",
+            "amountUsdc": "2000000"
+          }
+        }
+      ],
+      "expected": {
+        "creditLineStatus": "ACCEPTED",
+        "lender": "0x0000000000000000000000000000000000000001",
+        "trader": "0x0000000000000000000000000000000000000002",
+        "marginCallStatus": "VALIDATED",
+        "marginCallId": "1",
+        "reserveReviewStatus": "COMPLETED",
+        "limitUsdc": "7000000",
+        "availableReserveUsdc": "5000000",
+        "outstandingPrincipalUsdc": "2000000"
+      }
+    }
+  ]
+}
