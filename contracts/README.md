@@ -13,7 +13,9 @@ npm --prefix contracts exec -- tsc -p contracts/tsconfig.json
 
 Le prêteur appelle `proposeCreditLine(trader, 7000000)` et récupère le `lineId` dans `CreditLineProposed`. Le négociant désigné appelle `acceptCreditLine(lineId)`. Le prêteur approuve ensuite le contrat pour `7000000` sur le jeton USDC et appelle `depositReserve(lineId, 7000000)`.
 
-Le validateur désigné appelle `validateMarginCall(lineId, marginCallId)` avec l’identifiant non nul de l’appel simulé. Le négociant appelle `drawCredit(lineId, marginCallId, 2000000)`, approuve le contrat pour `2000000` sur le jeton USDC, puis appelle `repayCredit(lineId, 2000000)`. `creditLines(lineId)` donne le plafond, le disponible et le principal dû en unités USDC à six décimales.
+Le validateur désigné appelle `validateMarginCall(lineId, marginCallId, 2000000)` avec l’identifiant non nul de l’appel simulé et le montant maximal autorisé. Le négociant appelle `drawCredit(lineId, marginCallId, 2000000)`, approuve le contrat pour `2000000` sur le jeton USDC, puis appelle `repayCredit(lineId, 2000000)`.
+
+`creditLines(lineId)` donne le plafond de la ligne, le disponible et le principal dû. `marginCalls(lineId, marginCallId)` donne le maximum autorisé et le cumul des tirages pour l’appel. Le remboursement reconstitue la réserve et réduit le principal dû. Le cumul de l’appel reste à `2000000`, ce qui épuise son autorisation. Tous les montants sont en unités USDC à six décimales.
 
 ## Déploiement sur Arc Testnet
 
@@ -25,4 +27,4 @@ npm --prefix contracts run deploy:arc
 
 Après confirmation de la transaction, le script affiche le `chainId` (5042002), l’`address` du contrat, son `blockNumber` et le `transactionHash`. Transmettre l’adresse et le bloc à QuickNode pour configurer le filtre du stream.
 
-Pour décoder les événements, utiliser la propriété `abi` de `contracts/artifacts/contracts/IMetalFlowEvents.sol/IMetalFlowEvents.json`, généré par la compilation. L’ABI complète du contrat est dans `contracts/artifacts/contracts/MetalFlowCreditLine.sol/MetalFlowCreditLine.json`.
+Pour décoder les événements, utiliser la propriété `abi` de `contracts/artifacts/contracts/IMetalFlowEvents.sol/IMetalFlowEvents.json`, généré par la compilation. Le filtre QuickNode utilise le topic de la signature `MarginCallValidated(uint256,uint256,uint256)` et le décodeur lit `maxAmountUsdc` dans les données du log. L’ABI complète du contrat est dans `contracts/artifacts/contracts/MetalFlowCreditLine.sol/MetalFlowCreditLine.json`.

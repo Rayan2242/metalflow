@@ -5,6 +5,7 @@ import { network } from "hardhat";
 
 const lineId = 1n;
 const marginCallId = 10n;
+const oneUsdc = 1_000_000n;
 const twoUsdc = 2_000_000n;
 const fiveUsdc = 5_000_000n;
 const sevenUsdc = 7_000_000n;
@@ -76,8 +77,8 @@ describe("MetalFlowCreditLine", () => {
     assert.equal(await token.balanceOf(lender), 13_000_000n);
     assert.equal(await token.balanceOf(credit), sevenUsdc);
 
-    await expectEvent(credit, asValidator.validateMarginCall(lineId, marginCallId),
-      "MarginCallValidated", [lineId, marginCallId]);
+    await expectEvent(credit, asValidator.validateMarginCall(lineId, marginCallId, twoUsdc),
+      "MarginCallValidated", [lineId, marginCallId, twoUsdc]);
     assert.equal(await credit.validatedMarginCalls(lineId, marginCallId), true);
 
     await expectEvent(credit, asTrader.drawCredit(lineId, marginCallId, twoUsdc),
@@ -91,6 +92,7 @@ describe("MetalFlowCreditLine", () => {
     await expectState(credit, 2n, sevenUsdc, 0n);
     assert.equal(await token.balanceOf(trader), 0n);
     assert.equal(await token.balanceOf(credit), sevenUsdc);
+    assert.deepEqual(Array.from(await credit.marginCalls(lineId, marginCallId)), [twoUsdc, twoUsdc]);
   });
 
   it("restricts acceptance, deposits, validation, draws and repayments to their roles", async (t) => {
@@ -101,8 +103,8 @@ describe("MetalFlowCreditLine", () => {
     await asTrader.acceptCreditLine(lineId);
 
     await assert.rejects(asTrader.depositReserve(lineId, sevenUsdc), /Unauthorized/);
-    await assert.rejects(credit.validateMarginCall(lineId, marginCallId), /Unauthorized/);
-    await assert.rejects(asTrader.validateMarginCall(lineId, marginCallId), /Unauthorized/);
+    await assert.rejects(credit.validateMarginCall(lineId, marginCallId, twoUsdc), /Unauthorized/);
+    await assert.rejects(asTrader.validateMarginCall(lineId, marginCallId, twoUsdc), /Unauthorized/);
     await assert.rejects(asOutsider.drawCredit(lineId, marginCallId, twoUsdc), /Unauthorized/);
     await assert.rejects(asOutsider.repayCredit(lineId, twoUsdc), /Unauthorized/);
     await expectState(credit, 2n, 0n, 0n);
@@ -112,14 +114,14 @@ describe("MetalFlowCreditLine", () => {
     const { credit, asTrader, asValidator, trader } = await deploy(t);
     await credit.proposeCreditLine(trader.address, sevenUsdc);
     await assert.rejects(credit.depositReserve(lineId, sevenUsdc), /InvalidLineStatus/);
-    await assert.rejects(asValidator.validateMarginCall(lineId, marginCallId), /InvalidLineStatus/);
+    await assert.rejects(asValidator.validateMarginCall(lineId, marginCallId, twoUsdc), /InvalidLineStatus/);
     await assert.rejects(asTrader.drawCredit(lineId, marginCallId, twoUsdc), /InvalidLineStatus/);
   });
 
   it("rejects draws without validation for that line and margin call", async (t) => {
     const { credit, token, asTrader, asValidator, trader } = await openLine(t);
     await assert.rejects(asTrader.drawCredit(lineId, marginCallId, twoUsdc), /MarginCallNotValidated/);
-    await asValidator.validateMarginCall(lineId, marginCallId);
+    await asValidator.validateMarginCall(lineId, marginCallId, twoUsdc);
     await assert.rejects(asTrader.drawCredit(lineId, marginCallId + 1n, twoUsdc), /MarginCallNotValidated/);
 
     const otherLine = lineId + 1n;
@@ -128,26 +130,70 @@ describe("MetalFlowCreditLine", () => {
     await token.approve(credit, sevenUsdc);
     await credit.depositReserve(otherLine, sevenUsdc);
     await assert.rejects(asTrader.drawCredit(otherLine, marginCallId, twoUsdc), /MarginCallNotValidated/);
+    await asTrader.drawCredit(lineId, marginCallId, twoUsdc);
+    await asValidator.validateMarginCall(otherLine, marginCallId, oneUsdc);
+    await asTrader.drawCredit(otherLine, marginCallId, oneUsdc);
+    assert.deepEqual(Array.from(await credit.marginCalls(lineId, marginCallId)), [twoUsdc, twoUsdc]);
+    assert.deepEqual(Array.from(await credit.marginCalls(otherLine, marginCallId)), [oneUsdc, oneUsdc]);
   });
 
   it("rejects a draw above the available reserve", async (t) => {
-    const { credit, asTrader, asValidator } = await openLine(t, 1_000_000n);
-    await asValidator.validateMarginCall(lineId, marginCallId);
+    const { credit, asTrader, asValidator } = await openLine(t, oneUsdc);
+    await asValidator.validateMarginCall(lineId, marginCallId, twoUsdc);
     await assert.rejects(asTrader.drawCredit(lineId, marginCallId, twoUsdc), /InsufficientReserve/);
-    await expectState(credit, 2n, 1_000_000n, 0n);
+    await expectState(credit, 2n, oneUsdc, 0n);
   });
 
   it("checks the remaining credit limit even when the reserve can fund the draw", async (t) => {
     const { credit, asTrader, asValidator } = await openLine(t, 10_000_000n);
-    await asValidator.validateMarginCall(lineId, marginCallId);
+    await asValidator.validateMarginCall(lineId, marginCallId, twoUsdc);
     await asTrader.drawCredit(lineId, marginCallId, twoUsdc);
-    await assert.rejects(asTrader.drawCredit(lineId, marginCallId, fiveUsdc + 1n), /CreditLimitExceeded/);
+    const otherCallId = marginCallId + 1n;
+    await asValidator.validateMarginCall(lineId, otherCallId, sevenUsdc);
+    await assert.rejects(asTrader.drawCredit(lineId, otherCallId, fiveUsdc + 1n), /CreditLimitExceeded/);
     await expectState(credit, 2n, 8_000_000n, twoUsdc);
+  });
+
+  it("requires a positive margin call limit and rejects revalidation after a draw", async (t) => {
+    const { credit, asTrader, asValidator } = await openLine(t);
+    await assert.rejects(asValidator.validateMarginCall(lineId, marginCallId, 0n), /ZeroAmount/);
+    assert.equal(await credit.validatedMarginCalls(lineId, marginCallId), false);
+    await asValidator.validateMarginCall(lineId, marginCallId, twoUsdc);
+    await asTrader.drawCredit(lineId, marginCallId, oneUsdc);
+    await assert.rejects(
+      asValidator.validateMarginCall(lineId, marginCallId, sevenUsdc),
+      /MarginCallAlreadyValidated/,
+    );
+    assert.deepEqual(Array.from(await credit.marginCalls(lineId, marginCallId)), [twoUsdc, oneUsdc]);
+  });
+
+  it("enforces the cumulative margin call limit before and after repayment", async (t) => {
+    const { credit, traderToken, asTrader, asValidator } = await openLine(t);
+    await asValidator.validateMarginCall(lineId, marginCallId, twoUsdc);
+    await assert.rejects(asTrader.drawCredit(lineId, marginCallId, twoUsdc + 1n), /MarginCallLimitExceeded/);
+    await asTrader.drawCredit(lineId, marginCallId, oneUsdc);
+    await assert.rejects(asTrader.drawCredit(lineId, marginCallId, oneUsdc + 1n), /MarginCallLimitExceeded/);
+
+    await traderToken.approve(credit, twoUsdc);
+    await asTrader.repayCredit(lineId, oneUsdc);
+    await expectState(credit, 2n, sevenUsdc, 0n);
+    await assert.rejects(asTrader.drawCredit(lineId, marginCallId, oneUsdc + 1n), /MarginCallLimitExceeded/);
+    await asTrader.drawCredit(lineId, marginCallId, oneUsdc);
+    await asTrader.repayCredit(lineId, oneUsdc);
+
+    await expectState(credit, 2n, sevenUsdc, 0n);
+    await assert.rejects(asTrader.drawCredit(lineId, marginCallId, 1n), /MarginCallLimitExceeded/);
+    assert.deepEqual(Array.from(await credit.marginCalls(lineId, marginCallId)), [twoUsdc, twoUsdc]);
+
+    const otherCallId = marginCallId + 1n;
+    await asValidator.validateMarginCall(lineId, otherCallId, oneUsdc);
+    await asTrader.drawCredit(lineId, otherCallId, oneUsdc);
+    assert.deepEqual(Array.from(await credit.marginCalls(lineId, otherCallId)), [oneUsdc, oneUsdc]);
   });
 
   it("rejects repayments greater than the outstanding principal", async (t) => {
     const { credit, asTrader, asValidator, token, traderToken, trader } = await openLine(t);
-    await asValidator.validateMarginCall(lineId, marginCallId);
+    await asValidator.validateMarginCall(lineId, marginCallId, twoUsdc);
     await asTrader.drawCredit(lineId, marginCallId, twoUsdc);
     await token.transfer(trader, 1n);
     await traderToken.approve(credit, twoUsdc + 1n);

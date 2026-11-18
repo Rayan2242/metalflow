@@ -17,6 +17,11 @@ contract MetalFlowCreditLine is IMetalFlowEvents {
         uint256 outstandingPrincipalUsdc;
     }
 
+    struct MarginCall {
+        uint256 maxAmountUsdc;
+        uint256 drawnAmountUsdc;
+    }
+
     error ZeroAddress();
     error ZeroAmount();
     error Unauthorized();
@@ -24,6 +29,7 @@ contract MetalFlowCreditLine is IMetalFlowEvents {
     error InvalidMarginCallId();
     error MarginCallAlreadyValidated();
     error MarginCallNotValidated();
+    error MarginCallLimitExceeded();
     error InsufficientReserve();
     error CreditLimitExceeded();
     error ExcessiveRepayment();
@@ -32,7 +38,7 @@ contract MetalFlowCreditLine is IMetalFlowEvents {
     address public immutable marginValidator;
     uint256 public lineCount;
     mapping(uint256 lineId => CreditLine) public creditLines;
-    mapping(uint256 lineId => mapping(uint256 marginCallId => bool)) public validatedMarginCalls;
+    mapping(uint256 lineId => mapping(uint256 marginCallId => MarginCall)) public marginCalls;
 
     constructor(IERC20 usdc_, address marginValidator_) {
         if (address(usdc_) == address(0) || marginValidator_ == address(0)) revert ZeroAddress();
@@ -75,24 +81,33 @@ contract MetalFlowCreditLine is IMetalFlowEvents {
         emit ReserveDeposited(lineId, amountUsdc);
     }
 
-    function validateMarginCall(uint256 lineId, uint256 marginCallId) external {
+    function validatedMarginCalls(uint256 lineId, uint256 marginCallId) external view returns (bool) {
+        return marginCalls[lineId][marginCallId].maxAmountUsdc != 0;
+    }
+
+    function validateMarginCall(uint256 lineId, uint256 marginCallId, uint256 maxAmountUsdc) external {
         if (msg.sender != marginValidator) revert Unauthorized();
         _acceptedLine(lineId);
         if (marginCallId == 0) revert InvalidMarginCallId();
-        if (validatedMarginCalls[lineId][marginCallId]) revert MarginCallAlreadyValidated();
+        if (maxAmountUsdc == 0) revert ZeroAmount();
+        MarginCall storage marginCall = marginCalls[lineId][marginCallId];
+        if (marginCall.maxAmountUsdc != 0) revert MarginCallAlreadyValidated();
 
-        validatedMarginCalls[lineId][marginCallId] = true;
-        emit MarginCallValidated(lineId, marginCallId);
+        marginCall.maxAmountUsdc = maxAmountUsdc;
+        emit MarginCallValidated(lineId, marginCallId, maxAmountUsdc);
     }
 
     function drawCredit(uint256 lineId, uint256 marginCallId, uint256 amountUsdc) external {
         CreditLine storage line = _acceptedLine(lineId);
         if (msg.sender != line.trader) revert Unauthorized();
         if (amountUsdc == 0) revert ZeroAmount();
-        if (!validatedMarginCalls[lineId][marginCallId]) revert MarginCallNotValidated();
+        MarginCall storage marginCall = marginCalls[lineId][marginCallId];
+        if (marginCall.maxAmountUsdc == 0) revert MarginCallNotValidated();
         if (amountUsdc > line.availableReserveUsdc) revert InsufficientReserve();
         if (amountUsdc > line.limitUsdc - line.outstandingPrincipalUsdc) revert CreditLimitExceeded();
+        if (amountUsdc > marginCall.maxAmountUsdc - marginCall.drawnAmountUsdc) revert MarginCallLimitExceeded();
 
+        marginCall.drawnAmountUsdc += amountUsdc;
         line.availableReserveUsdc -= amountUsdc;
         line.outstandingPrincipalUsdc += amountUsdc;
         usdc.safeTransfer(msg.sender, amountUsdc);
